@@ -35,8 +35,3 @@ class Ui_TrirdWindow(object):
         self.label.setText(_translate("TrirdWindow", "Ошибка запуска антивируса."))
         self.label_2.setText(_translate("TrirdWindow", "Попробуйте еще раз."))
         self.pushButton_2.setText(_translate("TrirdWindow", "Закрыть"))
-
-    # def on_click(self):
-    #     TrirdWindow.close()
-    #     object_mainWindow = Ui_MainWindow()
-    #     object_mainWindow.show()

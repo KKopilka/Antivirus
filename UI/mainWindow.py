@@ -35,5 +35,3 @@ class Ui_MainWindow(object):
         self.ScanButton.setText(_translate("MainWindow", "Отсканировать файлы"))
         self.label.setText(_translate("MainWindow", "Выберите директорию"))
         self.toolButton.setText(_translate("MainWindow", "..."))
-
-
