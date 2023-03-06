@@ -2,7 +2,7 @@
 
 # Compiling
 ```golang
-git clone 
+git clone https://github.com/KKopilka/Antivirus.git
 go build .\app\main.go
 ```
 # Usage
