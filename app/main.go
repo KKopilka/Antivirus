@@ -49,30 +49,30 @@ func main() {
 					continue
 				}
 				if fileData.IsDir() {
-					if recursiveScanning {
-						err = filepath.Walk(argument,
-							func(path string, data os.FileInfo, err error) error {
-								if err != nil {
-									return err
+					// if recursiveScanning {
+					err = filepath.Walk(argument,
+						func(path string, data os.FileInfo, err error) error {
+							if err != nil {
+								return err
+							}
+							fileData, err := os.Stat(path)
+							if err == nil {
+								if !fileData.IsDir() {
+									scanFile(path)
+									scanned++
 								}
-								fileData, err := os.Stat(path)
-								if err == nil {
-									if !fileData.IsDir() {
-										scanFile(path)
-										scanned++
-									}
-									return nil
-								} else {
-									fmt.Printf("[%v] %v\n", argument, err.Error())
-									return err
-								}
-							})
-						if err != nil {
-							fmt.Printf("[%v] %v\n", argument, err.Error())
-						}
-					} else {
-						fmt.Printf("[%v] Is a directory: %v\n", argument, argument)
+								return nil
+							} else {
+								fmt.Printf("[%v] %v\n", argument, err.Error())
+								return err
+							}
+						})
+					if err != nil {
+						fmt.Printf("[%v] %v\n", argument, err.Error())
 					}
+					// } else {
+					// 	fmt.Printf("[%v] Is a directory: %v\n", argument, argument)
+					// }
 				} else {
 					scanFile(argument)
 					scanned++
