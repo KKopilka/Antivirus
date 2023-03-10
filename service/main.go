@@ -16,7 +16,6 @@ import (
 )
 
 var (
-	version           string = "1.0.1"
 	recursiveScanning bool
 	verboseOutput     bool
 	scanned           int
@@ -27,21 +26,10 @@ var (
 )
 
 func main() {
-	helpPage := "(" + version + ") Usage: follina-scanner [OPTION]... [FILE]...\n\n" +
-		"\t-r, --recursive\t\tRecursively scan files in a directory\n" +
-		"\t-v, --verbose\t\tDisplay everything that's happening"
 	if len(os.Args) > 1 {
 		for index, argument := range os.Args {
 			if index == 0 {
 				continue
-			}
-			if argument == "-h" || argument == "--help" {
-				fmt.Println(helpPage)
-				return
-			} else if argument == "-r" || argument == "--recursive" {
-				recursiveScanning = true
-			} else if argument == "-v" || argument == "--verbose" {
-				verboseOutput = true
 			} else {
 				fileData, err := os.Stat(argument)
 				if err != nil {
@@ -49,7 +37,6 @@ func main() {
 					continue
 				}
 				if fileData.IsDir() {
-					// if recursiveScanning {
 					err = filepath.Walk(argument,
 						func(path string, data os.FileInfo, err error) error {
 							if err != nil {
@@ -70,9 +57,6 @@ func main() {
 					if err != nil {
 						fmt.Printf("[%v] %v\n", argument, err.Error())
 					}
-					// } else {
-					// 	fmt.Printf("[%v] Is a directory: %v\n", argument, argument)
-					// }
 				} else {
 					scanFile(argument)
 					scanned++
@@ -88,8 +72,6 @@ func main() {
 				color.New(color.FgYellow).Add(color.Bold).Sprintf("\nSuspicious files (%v): ", len(suspiciousFiles)) + strings.Join(suspiciousFiles, ", ") +
 				color.New(color.FgRed).Add(color.Bold).Sprintf("\nInfected files (%v): ", len(infectedFiles)) + strings.Join(infectedFiles, ", ") + "\n",
 		)
-	} else {
-		fmt.Println(helpPage)
 	}
 }
 
@@ -157,12 +139,12 @@ func scanFile(filePath string) {
 				continue
 			}
 			if strings.Contains(string(responseBytes), "ms-msdt") {
-				message := fmt.Sprintf("[%v] Found Follina exploit in %v (%v)", filePath, filePath, url)
+				message := fmt.Sprintf("[%v] Found exploit in %v (%v)", filePath, filePath, url)
 				separator := strings.Repeat("=", len(message))
 				warningColor.Printf("%v\n%v\n%v\n", separator, message, separator)
 				infectedFiles = append(infectedFiles, filePath)
 			} else {
-				fmt.Printf("[%v] No Follina exploit found\n", filePath)
+				fmt.Printf("[%v] No exploit found\n", filePath)
 			}
 			return
 		}

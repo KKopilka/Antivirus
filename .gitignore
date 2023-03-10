@@ -2,3 +2,6 @@
 *.zip
 *.rar
 *.Follina_Exploiter_CLI
+*.txt
+
+**/__pycache__/
