@@ -1,4 +1,4 @@
-# Antivirus (пока что так)
+# Antivirus
 
 # Compiling
 ```golang
