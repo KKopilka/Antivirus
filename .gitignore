@@ -4,4 +4,4 @@
 *.Follina_Exploiter_CLI
 *.txt
 
-__pycache__/
+UI/__pycache__/
