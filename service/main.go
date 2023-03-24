@@ -3,9 +3,13 @@ package main
 import (
 	"fmt"
 	"io/fs"
+	"kkopilka/AV/internal/avs"
 	"os"
 	"path/filepath"
-	"ryan/follina-scanner/internal/h3x/avs"
+	"strconv"
+	"strings"
+
+	"github.com/fatih/color"
 )
 
 // var (
@@ -40,29 +44,41 @@ func main() {
 							if info.IsDir() {
 								return nil
 							}
-							fmt.Println("scan in file", path)
-							return a.ScanFile(path, "signName", avs.VirSigN1)
+							// fmt.Println("scan in file", path)
+							return a.ScanFile(path)
 						})
 					if err != nil {
 						fmt.Printf("[%v] %v\n", argument, err.Error())
 					}
 				} else {
-					a.ScanFile(argument, "signName", avs.VirSigN1)
+					a.ScanFile(argument)
 				}
 			}
 		}
 
-		fmt.Printf("%+v", a.VirusStats)
+		// fmt.Printf("%+v", a.VirusStats)
+
+		infectedFilesScan := map[string]struct{}{}
+		for file, signStats := range a.VirusStats {
+			if len(signStats) > 0 {
+				infectedFilesScan[file] = struct{}{}
+			}
+		}
+		infectedFiles := []string{}
+		for file, _ := range infectedFilesScan {
+			infectedFiles = append(infectedFiles, file)
+		}
+		valid := len(a.VirusStats) - len(infectedFiles)
 
 		// if scanned > 0 {
 		// 	fmt.Println()
 		// }
-		// fmt.Printf(
-		// 	color.New(color.FgGreen).Add(color.Bold).Sprintf("Scanned files: ") + strconv.Itoa(scanned) +
-		// 		color.New(color.FgGreen).Add(color.Bold).Sprintf("\nValid documents: ") + strconv.Itoa(valid) +
-		// 		color.New(color.FgYellow).Add(color.Bold).Sprintf("\nSuspicious files (%v): ", len(suspiciousFiles)) + strings.Join(suspiciousFiles, ", ") +
-		// 		color.New(color.FgRed).Add(color.Bold).Sprintf("\nInfected files (%v): ", len(infectedFiles)) + strings.Join(infectedFiles, ", ") + "\n",
-		// )
+		fmt.Printf(
+			color.New(color.FgGreen).Add(color.Bold).Sprintf("Scanned files: ") + strconv.Itoa(len(a.VirusStats)) +
+				color.New(color.FgGreen).Add(color.Bold).Sprintf("\nValid documents: ") + strconv.Itoa(valid) +
+				// color.New(color.FgYellow).Add(color.Bold).Sprintf("\nSuspicious files (%v): ", len(suspiciousFiles)) + strings.Join(suspiciousFiles, ", ") +
+				color.New(color.FgRed).Add(color.Bold).Sprintf("\nInfected files (%v): ", len(infectedFiles)) + strings.Join(infectedFiles, ", ") + "\n",
+		)
 	}
 }
 
