@@ -42,8 +42,6 @@ class MainWin(QtWidgets.QMainWindow):
             MyApp3.show()
         else:
             MyApp2.show()
-            
-            process = Process()
             Scan.show()
             
             cmd = "../main.exe"
