@@ -8,6 +8,27 @@ from PyQt5.QtWidgets import QFileDialog
 
 os.environ['PYTHONIOENCODING'] = 'utf-8'
 
+def buffer_to_str(buf):
+    codec = QtCore.QTextCodec.codecForName("UTF-8")
+    return str(codec.toUnicode(buf))
+
+# This process is created only to read stdout of main.exe
+class Process(QtCore.QObject):
+    stdout = QtCore.pyqtSignal(str)
+    stderr = QtCore.pyqtSignal(str)
+    finished = QtCore.pyqtSignal(int)
+
+    def start(self, program, args):
+        process = QtCore.QProcess()
+        process.setProgram(program)
+        process.setArguments(args)
+        process.readyReadStandardError.connect(lambda: self.stderr.emit(buffer_to_str(process.readAllStandardError())))
+        process.readyReadStandardOutput.connect(lambda: self.stderr.emit(buffer_to_str(process.readAllStandardOutput())))
+        process.finished.connect(self.finished)
+        process.start()
+        
+        self._process = process
+
 class MainWin(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
@@ -21,19 +42,13 @@ class MainWin(QtWidgets.QMainWindow):
             MyApp3.show()
         else:
             MyApp2.show()
-            # Вот сюда кладем условие запуска гошки
-        
-            # Вот это для файла
-            #go_scan_result = os.popen("main.exe " + self.file_name_to_scan)
             
-            # Вот это для директории
-            p = subprocess.Popen(["../main.exe", self.ui.lineEdit.text()], stdout=subprocess.PIPE)
-            result = p.communicate()
-            go_scan_result = result[0].decode('utf-8')
-            
-            print(go_scan_result)
+            process = Process()
             Scan.show()
-            Scan.change_txt_output(go_scan_result)
+            
+            cmd = "../main.exe"
+            args = [self.ui.lineEdit.text()]
+            Scan.funkStartScan(cmd, args)
 
 
     @QtCore.pyqtSlot()
@@ -115,14 +130,24 @@ class ScanWin(QtWidgets.QMainWindow):
         self.scan = Ui_ScanWindow()
         self.scan.setupUi(self)
         self.scan.btnClose.clicked.connect(self.funkClose)
+        self.scan.btnCancelScan.clicked.connect(self.funkCancelScan)
+        self.process = None
         
     def funkClose(self):
+        self.scan.txtScan.setPlainText("")
         Scan.close()
         
-    def change_txt_output(self, go_scan_result):
-        self.scan.txtScan.setText(go_scan_result)
-        
-    
+    def funkCancelScan(self):
+        assert self.process != None
+        # Признаю, это костыль
+        try:
+            self.process.stderr.disconnect(self.scan.txtScan.appendPlainText)
+        except:
+            pass
+    def funkStartScan(self, cmd, args):
+        self.process = Process()
+        self.process.stderr.connect(self.scan.txtScan.appendPlainText)
+        self.process.start(cmd, args)
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
