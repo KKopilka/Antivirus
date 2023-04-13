@@ -54,7 +54,7 @@ class MainWin(QtWidgets.QMainWindow):
             dialog.setOption(dialog.DontUseNativeDialog, True)
             if directory:
                 dialog.setDirectory(directory)
-            if filter:
+            if filter: 
                 dialog.setNameFilter(filter)
                 if initialFilter:
                     dialog.selectNameFilter(initialFilter)
@@ -73,7 +73,6 @@ class MainWin(QtWidgets.QMainWindow):
             stackedWidget = dialog.findChild(QtWidgets.QStackedWidget)
             view = stackedWidget.findChild(QtWidgets.QListView)
             view.selectionModel().selectionChanged.connect(updateText)
-
             lineEdit = dialog.findChild(QtWidgets.QLineEdit)
             # clear the line edit contents whenever the current directory changes
             dialog.directoryEntered.connect(lambda: lineEdit.setText(''))

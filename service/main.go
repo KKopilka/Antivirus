@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"kkopilka/AV/internal/avs"
 	"os"
+
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -82,7 +83,7 @@ func main() {
 	}
 }
 
-// func scanFile(filePath string) {
+// func scanZipFile(filePath string) {
 // 	document, err := zip.OpenReader(filePath)
 // 	if err != nil {
 // 		if verboseOutput {
