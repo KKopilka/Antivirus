@@ -1,8 +1,6 @@
-*.exe
-*.zip
-*.rar
+# *.exe
 *.Follina_Exploiter_CLI
-*.txt
 *.xlsx
 
+trash/
 UI/__pycache__/
