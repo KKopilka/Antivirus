@@ -1,17 +1,17 @@
 package avs
 
 import (
-	"bufio"
 	"bytes"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type AVScanner struct {
@@ -20,16 +20,23 @@ type AVScanner struct {
 }
 
 type Signature struct {
-	Offset int64 // смещение в байтах от начала
-	Sign   []byte
+	id          int64
+	Sign        []byte
+	sha         int64
+	offsetBegin int64 // смещение в байтах от начала
+	offsetEnd   int64
+	dtype       string
 }
 
 var errFoundSign = errors.New("найдена сигнатура. Ты бара")
 
+func main() {
+	fmt.Println(ReadSignatureDatabase())
+}
 func (s *Signature) FindInFile(f *os.File) error {
 	virSigLen := len(s.Sign)
 	byteSlice := make([]byte, virSigLen)
-	n, err := f.ReadAt(byteSlice, s.Offset)
+	n, err := f.ReadAt(byteSlice, s.offsetBegin)
 	if err != nil {
 		return err
 	}
@@ -55,7 +62,7 @@ func NewAVScanner() *AVScanner {
 		VirusStats: make(map[string][]string),
 	}
 
-	err := filepath.Walk("signatures", func(path string, info fs.FileInfo, err error) error {
+	err := filepath.Walk("./database/signature.db", func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -64,7 +71,7 @@ func NewAVScanner() *AVScanner {
 			return nil
 		}
 
-		s, err := ReadSignatureFile(path)
+		s, err := ReadSignatureDatabase()
 		if err != nil {
 			fmt.Println("signature not loaded", path, "err", err.Error())
 		} else {
@@ -113,36 +120,61 @@ func (avs *AVScanner) ScanFile(filepath string) error {
 	return nil
 }
 
-func ReadSignatureFile(filepath string) (Signature, error) {
-	s := Signature{}
-	sign, err := ioutil.ReadFile(filepath)
-
+func ReadSignatureDatabase() (Signature, error) {
+	db, err := sql.Open("sqlite3", "./database/signatures.db")
 	if err != nil {
-		return s, err
+		panic(err)
 	}
+	defer db.Close()
 
-	// s.sign = sign
-	// fmt.Println("readed bytes:", sign)
-
-	var b bytes.Buffer
-	b.Write(sign)
-	scanner := bufio.NewScanner(&b)
-
-	scanner.Scan()
-	offstr := scanner.Text()
-
-	if offstr == "" {
-		return s, errors.New("empty offset in signature file")
+	result, err := db.Query("SELECT * FROM signatures")
+	if err != nil {
+		panic(err)
 	}
+	defer result.Close()
+	// signature := []Signature{}
+	s := Signature{}
+	for result.Next() {
 
-	if v, err := strconv.Atoi(offstr); err != nil {
-		return s, err
-	} else {
-		s.Offset = int64(v)
+		err := result.Scan(&s.id, &s.Sign, &s.sha, &s.offsetBegin, &s.offsetEnd, &s.dtype)
+
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		// signature = append(signature, s)
 	}
-
-	scanner.Scan()
-	s.Sign = scanner.Bytes()
 
 	return s, nil
+
+	// sign, err := ioutil.ReadFile(filepath)
+
+	// if err != nil {
+	// 	return s, err
+	// }
+
+	// // s.sign = sign
+	// // fmt.Println("readed bytes:", sign)
+
+	// var b bytes.Buffer
+	// b.Write(sign)
+	// scanner := bufio.NewScanner(&b)
+
+	// scanner.Scan()
+	// offstr := scanner.Text()
+
+	// if offstr == "" {
+	// 	return s, errors.New("empty offset in signature file")
+	// }
+
+	// if v, err := strconv.Atoi(offstr); err != nil {
+	// 	return s, err
+	// } else {
+	// 	s.Offset = int64(v)
+	// }
+
+	// scanner.Scan()
+	// s.Sign = scanner.Bytes()
+
+	// return s, nil
 }
