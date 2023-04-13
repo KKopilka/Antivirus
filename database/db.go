@@ -1,4 +1,4 @@
-package test
+package main
 
 import (
 	"database/sql"
@@ -8,10 +8,17 @@ import (
 )
 
 func main() {
-	db, _ := sql.Open("sqlite3", "signatures.db")
+	db, err := sql.Open("sqlite3", "signatures.db")
+	if err != nil {
+		panic(err)
+	}
 	defer db.Close()
-	result, _ := db.Query("SELECT * FROM signatures")
-	defer result.Close()
+
+	result, err := db.Query("SELECT * FROM signatures")
+	// defer result.Close()
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("--------------------------------------------\n")
 	for result.Next() {
 		var id int
