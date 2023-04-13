@@ -3,5 +3,6 @@
 *.rar
 *.Follina_Exploiter_CLI
 *.txt
+*.xlsx
 
 UI/__pycache__/
