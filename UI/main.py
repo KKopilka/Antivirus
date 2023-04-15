@@ -3,6 +3,7 @@ from mainWindow import *
 from secondWindow import *
 from thirdWindow import *
 from scanWindow import *
+from schedWindow import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileDialog
 
@@ -35,6 +36,7 @@ class MainWin(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.ui.ScanButton.clicked.connect(self.disconnect)
+        self.ui.SchedButton.clicked.connect(self.schedule)
         self.ui.toolButton.clicked.connect(self.add_file)
 
     def disconnect(self):
@@ -48,6 +50,11 @@ class MainWin(QtWidgets.QMainWindow):
             args = [self.ui.lineEdit.text()]
             Scan.funkStartScan(cmd, args)
 
+    def schedule(self):
+        if self.ui.lineEdit_2.text() == '':
+            MyApp3.show()
+        else:
+    	    Schedule.show()
 
     @QtCore.pyqtSlot()
     def add_file(self):
@@ -146,11 +153,24 @@ class ScanWin(QtWidgets.QMainWindow):
         self.process.stderr.connect(self.scan.txtScan.appendPlainText)
         self.process.start(cmd, args)
 
+class SchedWindow(QtWidgets.QMainWindow): # текстбокс с логами называется textEdit
+    def __init__(self, parent=None):
+        QtWidgets.QWidget.__init__(self, parent)
+        self.sched = Ui_SchedWindow()
+        self.sched.setupUi(self)
+        self.sched.CancelScan.clicked.connect(self.exitSched)
+        # self.sched.ScanTime.setText('Время вместо 13:00')
+    
+    def exitSched(self):
+        Schedule.close()
+        # отмена сканирования
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     MyApp = MainWin()
     MyApp2 = SecondWin()
     MyApp3 = ThirdWin()
     Scan = ScanWin()
+    Schedule = SchedWindow()
     MyApp.show()
     sys.exit(app.exec_())
