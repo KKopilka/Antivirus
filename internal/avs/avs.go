@@ -2,20 +2,17 @@ package main
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
-	"io"
 	"os"
-	"strconv"
 
 	"github.com/beevik/prefixtree"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type AVScanner struct {
-	signatures map[string]Signature
-	VirusStats map[string][]string
-}
+// type AVScanner struct {
+// 	signatures map[string]Signature
+// 	VirusStats map[string][]string
+// }
 
 type Signature struct {
 	id          int64
@@ -26,50 +23,86 @@ type Signature struct {
 	dtype       string
 }
 
-var errFoundSign = errors.New("найдена сигнатура. Ты бара")
-var database *sql.DB
+type SignTree struct {
+	// s        map[byte]*SignTree
+	offsetBegin string
+	dtype       string
+}
 
 func main() {
 	db, err := sql.Open("sqlite3", "C:/Users/yanas/AV/database/signatures.db")
 	if err != nil {
 		panic(err)
 	}
-	database = db
 	defer db.Close()
-	ReadSignatureDatabase()
+	// ReadSignatureDatabase()
+	LoadSignatures(db)
+
+}
+
+// func (t *Trie) Insert(s string) {
+//     node := t.root
+//     for _, r := range s {
+//         if _, ok := node.children[r]; !ok {
+//             node.children[r] = &Node{children: make(map[rune]*Node)}
+//         }
+//         node = node.children[r]
+//     }
+//     node.isEnd = true
+// }
+
+// func InsertSignature(tree *Tree, signature string, offset uint64, fileType string) {
+// 	node := tree
+// 	for i := 0; i < len(signature); i++ {
+// 		char := signature[i]
+// 		if _, ok := node.s[char]; !ok {
+// 			node.s[char] = &Tree{s: make(map[byte]*Tree)}
+// 		}
+// 		node = node.s[char]
+// 	}
+// 	node.offset = offset
+// 	node.fileType = fileType
+// }
+
+// func Insert(tree *prefixtree.Tree, signature string, offset uint64, fileType string) {
+// 	node := tree
+// 	for i := 0; i < len(signature); i++ {
+// 		r := signature[i]
+// 		if _, ok := node.s[r]; !ok {
+// 			node.s[r] = &SignTree{s: make(map[byte]*SignTree)}
+// 		}
+// 		node = node.s[r]
+// 	}
+// 	node.offset = offset
+// 	node.fileType = fileType
+// }
+
+func LoadSignatures(db *sql.DB) (*prefixtree.Tree, error) {
+	tree := prefixtree.New()
+	// tree := &SignTree{s: make(map[byte]*SignTree)}
+	rows, err := db.Query("SELECT byte, offsetBegin, dtype FROM signatures")
+	if err != nil {
+		return tree, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var signature []byte
+		var offsetBegin string
+		var dtype string
+		if err := rows.Scan(&signature, &offsetBegin, &dtype); err != nil {
+			return tree, err
+		}
+
+		sigBytes := []byte(signature)
+		tree.Add(string(sigBytes), SignTree{offsetBegin: offsetBegin, dtype: dtype})
+		fmt.Println(tree)
+	}
+	return tree, err
 }
 
 func (signature *Signature) FindInFile(f *os.File) error {
-	tree := prefixtree.New()
-
-	for _, prefix := range []
-
-
-
-
 	return nil
-	// strconv.Atoi(signature.offsetBegin)
-
-	// virSigLen := len(signature.Sign)
-	// byteSlice := make([]byte, virSigLen)
-
-	// n, err := f.ReadAt(byteSlice, signature.offsetBegin)
-	// if err != nil {
-	// 	return err
-	// }
-	// // fmt.Println("file read result:", byteSlice)
-
-	// if n < virSigLen {
-	// 	// это ошибка, потому что мы прочитали меньше в файле, чем длина сигнатуры, вируса там нет
-	// 	return errors.New("прочитанно меньше байтов, чем длина сигнатуры")
-	// }
-
-	// if bytes.Equal(byteSlice, s.Sign) {
-	// 	// fmt.Println("found sig", s.Sign)
-	// 	return errFoundSign
-	// }
-
-	
 }
 
 // поиск и загрузка сигнатур
@@ -137,23 +170,23 @@ func (signature *Signature) FindInFile(f *os.File) error {
 // 	return nil
 // }
 
-func ReadSignatureDatabase() {
-	result, err := database.Query("SELECT * FROM signatures")
-	if err != nil {
-		panic(err)
-	}
-	defer result.Close()
-	signature := []Signature{}
+// func ReadSignatureDatabase() {
+// 	result, err := database.Query("SELECT * FROM signatures")
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	defer result.Close()
+// 	signature := []Signature{}
 
-	for result.Next() {
-		s := Signature{}
-		err := result.Scan(&s.id, &s.Sign, &s.sha, &s.offsetBegin, &s.offsetEnd, &s.dtype)
+// 	for result.Next() {
+// 		s := Signature{}
+// 		err := result.Scan(&s.id, &s.Sign, &s.sha, &s.offsetBegin, &s.offsetEnd, &s.dtype)
 
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		signature = append(signature, s)
-	}
-	fmt.Println(signature)
-}
+// 		if err != nil {
+// 			fmt.Println(err)
+// 			continue
+// 		}
+// 		signature = append(signature, s)
+// 	}
+// 	fmt.Println(signature)
+// }
