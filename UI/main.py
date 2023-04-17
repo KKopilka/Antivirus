@@ -1,4 +1,5 @@
-import sys, os, subprocess
+import sys, os, subprocess, time, threading
+from datetime import datetime, timedelta
 from mainWindow import *
 from secondWindow import *
 from thirdWindow import *
@@ -18,7 +19,6 @@ class Process(QtCore.QObject):
     stdout = QtCore.pyqtSignal(str)
     stderr = QtCore.pyqtSignal(str)
     finished = QtCore.pyqtSignal(int)
-
     def start(self, program, args):
         process = QtCore.QProcess()
         process.setProgram(program)
@@ -54,7 +54,10 @@ class MainWin(QtWidgets.QMainWindow):
         if self.ui.lineEdit_2.text() == '':
             MyApp3.show()
         else:
+    	    scan_period = self.ui.lineEdit_2.text()
     	    Schedule.show()
+    	    Schedule.setScanWindow(scan_period)
+    	    Schedule.makeSchedule(self.ui.lineEdit.text())
 
     @QtCore.pyqtSlot()
     def add_file(self):
@@ -103,7 +106,6 @@ class MainWin(QtWidgets.QMainWindow):
         
         if fname:
             self.ui.lineEdit.setText(fname)
-            print(fname)
 
 class SecondWin(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
@@ -159,11 +161,43 @@ class SchedWindow(QtWidgets.QMainWindow): # текстбокс с логами �
         self.sched = Ui_SchedWindow()
         self.sched.setupUi(self)
         self.sched.CancelScan.clicked.connect(self.exitSched)
-        # self.sched.ScanTime.setText('Время вместо 13:00')
+        self.path = None
+        self.timePeriod = None
+        self.sched.ScanTime.setText(str(datetime.now().hour)+":"+str(datetime.now().minute))
     
+    def setScanWindow(self, timePeriod):
+        self.timePeriod = int(timePeriod)
+    
+    def makeSchedule(self, path):
+        self.path = path
+        if self.path == '':
+            MyApp3.show()
+        else:
+            self.schedScanner = SchedScanner(self.path, self.timePeriod)
+            self.schedScanner.stdout.connect(self.sched.textEdit.appendPlainText)
+            self.schedScanner.nextScan.connect(self.sched.ScanTime.setText)
+            self.schedScanner.start()
+
     def exitSched(self):
         Schedule.close()
         # отмена сканирования
+
+class SchedScanner(QtCore.QThread):
+    stdout = QtCore.pyqtSignal(str)
+    nextScan = QtCore.pyqtSignal(str)
+    def __init__(self, path, period):
+        super().__init__()
+        self.path = path
+        self.period = period
+    def run(self):
+        while True:
+            cmd = "../main.exe "+self.path
+            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = p.communicate()
+            self.stdout.emit(str(stdout.decode()+stderr.decode()))
+            scanTime = datetime.now()+timedelta(seconds=self.period)
+            self.nextScan.emit(str(scanTime.hour)+":"+str(scanTime.minute))
+            time.sleep(self.period)
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
