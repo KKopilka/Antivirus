@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"io/fs"
-	// "kkopilka/AV/internal/avs"
+	"kkopilka/AV/internal/avs"
 	"os"
 
 	"path/filepath"

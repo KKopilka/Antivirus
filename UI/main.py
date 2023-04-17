@@ -7,6 +7,7 @@ from scanWindow import *
 from schedWindow import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileDialog
+from subprocess import Popen, PIPE
 
 os.environ['PYTHONIOENCODING'] = 'utf-8'
 
@@ -45,6 +46,7 @@ class MainWin(QtWidgets.QMainWindow):
         else:
             MyApp2.show()
             Scan.show()
+            Scan.scan.textEdit.setPlainText("")
             
             cmd = "../main.exe"
             args = [self.ui.lineEdit.text()]
@@ -54,10 +56,11 @@ class MainWin(QtWidgets.QMainWindow):
         if self.ui.lineEdit_2.text() == '':
             MyApp3.show()
         else:
-    	    scan_period = self.ui.lineEdit_2.text()
-    	    Schedule.show()
-    	    Schedule.setScanWindow(scan_period)
-    	    Schedule.makeSchedule(self.ui.lineEdit.text())
+            scan_period = self.ui.lineEdit_2.text()
+            Schedule.sched.textEdit.setPlainText("")
+            Schedule.show()
+            Schedule.setScanWindow(scan_period)
+            Schedule.makeSchedule(self.ui.lineEdit.text())
 
     @QtCore.pyqtSlot()
     def add_file(self):
@@ -140,7 +143,6 @@ class ScanWin(QtWidgets.QMainWindow):
         self.process = None
         
     def funkClose(self):
-        self.scan.txtScan.setPlainText("")
         Scan.close()
         
     def funkCancelScan(self):
@@ -192,9 +194,19 @@ class SchedScanner(QtCore.QThread):
     def run(self):
         while True:
             cmd = "../main.exe "+self.path
-            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            stdout, stderr = p.communicate()
-            self.stdout.emit(str(stdout.decode()+stderr.decode()))
+            #p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            #stdout, stderr = p.communicate()
+            with Popen(["../main.exe", self.path], stdout=PIPE) as p:
+                while True:
+                    text = p.stdout.read1().decode("utf-8")
+                    time.sleep(0.1)
+                    
+                    # Если сервис за 0.1 секунду ничего не вывел - значит прекращаем считывание
+                    if text == "":
+                        break
+
+            
+                    self.stdout.emit(text)
             scanTime = datetime.now()+timedelta(seconds=self.period)
             self.nextScan.emit(str(scanTime.hour)+":"+str(scanTime.minute))
             time.sleep(self.period)
