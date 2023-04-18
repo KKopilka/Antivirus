@@ -48,6 +48,7 @@ class MainWin(QtWidgets.QMainWindow):
         if self.ui.lineEdit.text() == '':
             MyApp3.show()
         else:
+            self.ui.ServiceStatus.setText("запущен")
             MyApp2.show()
             Scan.show()
             #Scan.scan.textEdit.setPlainText("")
@@ -60,6 +61,7 @@ class MainWin(QtWidgets.QMainWindow):
         if self.ui.lineEdit_2.text() == '':
             MyApp3.show()
         else:
+            self.ui.ServiceStatus.setText("запущен")
             scan_period = self.ui.lineEdit_2.text()
             Schedule.sched.textEdit.setPlainText("")
             Schedule.show()
@@ -70,6 +72,7 @@ class MainWin(QtWidgets.QMainWindow):
         if self.ui.lineEdit.text() == '' or not os.path.isdir(self.ui.lineEdit.text()):
             MyApp3.show()
         else:
+            self.ui.ServiceStatus.setText("запущен")
             Monitor.show()
             Monitor.startMonitor(self.ui.lineEdit.text())
 
@@ -155,6 +158,8 @@ class ScanWin(QtWidgets.QMainWindow):
         
     def funkClose(self):
         Scan.close()
+        self.scan.txtScan.setPlainText("")
+        MyApp.ui.ServiceStatus.setText("не запущен")
         
     def funkCancelScan(self):
         assert self.process != None
@@ -163,10 +168,21 @@ class ScanWin(QtWidgets.QMainWindow):
             self.process.stderr.disconnect(self.scan.txtScan.appendPlainText)
         except:
             pass
+            
     def funkStartScan(self, cmd, args):
         self.process = Process()
         self.process.stderr.connect(self.scan.txtScan.appendPlainText)
         self.process.start(cmd, args)
+        
+    def closeEvent(self, event):
+        assert self.process != None
+        # Признаю, это костыль
+        try:
+            self.process.stderr.disconnect(self.scan.txtScan.appendPlainText)
+        except:
+            pass
+        self.scan.txtScan.setPlainText("")
+        MyApp.ui.ServiceStatus.setText("не запущен")
 
 class SchedWindow(QtWidgets.QMainWindow): # текстбокс с логами называется textEdit
     def __init__(self, parent=None):
@@ -192,8 +208,15 @@ class SchedWindow(QtWidgets.QMainWindow): # текстбокс с логами �
             self.schedScanner.start()
 
     def exitSched(self):
-        self.schedScanner.stop()
+        self.schedScanner.terminate()
         Schedule.close()
+        self.sched.textEdit.setPlainText("")
+        MyApp.ui.ServiceStatus.setText("не запущен")
+        
+    def closeEvent(self, event):
+        self.schedScanner.terminate()
+        self.sched.textEdit.setPlainText("")
+        MyApp.ui.ServiceStatus.setText("не запущен")
 
 class SchedScanner(QtCore.QThread):
     stdout = QtCore.pyqtSignal(str)
@@ -242,6 +265,13 @@ class DirMonitoring(QtWidgets.QMainWindow): # текстбокс с логами
     def exitMon(self):
         Monitor.close()
         self.observer.stop()
+        self.mon.textEdit.setPlainText("")
+        MyApp.ui.ServiceStatus.setText("не запущен")
+        
+    def closeEvent(self, event):
+        self.observer.stop()
+        self.mon.textEdit.setPlainText("")
+        MyApp.ui.ServiceStatus.setText("не запущен")
 
 class MonHandler(FileSystemEventHandler):
     def on_created(self, event):
