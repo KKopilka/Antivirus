@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
 
 	"github.com/beevik/prefixtree"
@@ -15,16 +17,16 @@ import (
 // }
 
 type Signature struct {
-	id          int64
-	Sign        []byte
-	sha         string
+	// id          int64
+	Sign []byte
+	// sha         string
 	offsetBegin string // смещение в байтах от начала
-	offsetEnd   string
-	dtype       string
+	// offsetEnd   string
+	dtype string
 }
 
 type SignTree struct {
-	// s        map[byte]*SignTree
+	// s           []byte
 	offsetBegin string
 	dtype       string
 }
@@ -37,6 +39,7 @@ func main() {
 	defer db.Close()
 	// ReadSignatureDatabase()
 	LoadSignatures(db)
+	// LoadS(db)
 
 }
 
@@ -64,25 +67,44 @@ func main() {
 // 	node.fileType = fileType
 // }
 
-// func Insert(tree *prefixtree.Tree, signature string, offset uint64, fileType string) {
-// 	node := tree
-// 	for i := 0; i < len(signature); i++ {
-// 		r := signature[i]
-// 		if _, ok := node.s[r]; !ok {
-// 			node.s[r] = &SignTree{s: make(map[byte]*SignTree)}
-// 		}
-// 		node = node.s[r]
+//	func Insert(tree *prefixtree.Tree, signature string, offset uint64, fileType string) {
+//		node := tree
+//		for i := 0; i < len(signature); i++ {
+//			r := signature[i]
+//			if _, ok := node.s[r]; !ok {
+//				node.s[r] = &SignTree{s: make(map[byte]*SignTree)}
+//			}
+//			node = node.s[r]
+//		}
+//		node.offset = offset
+//		node.fileType = fileType
+//	}
+// func LoadS(db *sql.DB) (*trie.Trie, error) {
+// 	t := trie.New()
+// 	rows, err := db.Query("SELECT byte, offsetBegin, dtype FROM signatures")
+// 	if err != nil {
+// 		return nil, err
 // 	}
-// 	node.offset = offset
-// 	node.fileType = fileType
+// 	defer rows.Close()
+// 	for rows.Next() {
+// 		var signature []byte
+// 		var offsetBegin string
+// 		var dtype string
+// 		err := rows.Scan(&signature, &offsetBegin, &dtype)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		t.Add(string(signature), SignTree{offsetBegin: offsetBegin, dtype: dtype})
+// 		fmt.Println(t)
+// 	}
+// 	return t, nil
 // }
 
-func LoadSignatures(db *sql.DB) (*prefixtree.Tree, error) {
+func LoadSignatures(db *sql.DB) *prefixtree.Tree {
 	tree := prefixtree.New()
-	// tree := &SignTree{s: make(map[byte]*SignTree)}
 	rows, err := db.Query("SELECT byte, offsetBegin, dtype FROM signatures")
 	if err != nil {
-		return tree, err
+		log.Fatalf(err.Error())
 	}
 	defer rows.Close()
 
@@ -90,15 +112,40 @@ func LoadSignatures(db *sql.DB) (*prefixtree.Tree, error) {
 		var signature []byte
 		var offsetBegin string
 		var dtype string
-		if err := rows.Scan(&signature, &offsetBegin, &dtype); err != nil {
-			return tree, err
-		}
+		err := rows.Scan(&signature, &offsetBegin, &dtype)
 
-		sigBytes := []byte(signature)
-		tree.Add(string(sigBytes), SignTree{offsetBegin: offsetBegin, dtype: dtype})
-		fmt.Println(tree)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		tree.Add(string(signature), SignTree{offsetBegin: offsetBegin, dtype: dtype})
 	}
-	return tree, err
+	tree.Output()
+
+	return tree
+}
+
+func findSignatures(tree *prefixtree.Tree, filename string) ([]Signature, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	// тут какая-то хуйня нерабочая даже
+	var signatures []Signature
+	for _, match := range tree.Find(data) {
+		signature := match.Key().(Signature)
+		offset := match.Value().(int)
+		fileType := match.Metadata().(string)
+
+		signatures = append(signatures, Signature{
+			Name:     signature.Name,
+			Offset:   offset,
+			FileType: fileType,
+		})
+	}
+
+	return signatures, nil
 }
 
 func (signature *Signature) FindInFile(f *os.File) error {
