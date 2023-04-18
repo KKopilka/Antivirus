@@ -246,6 +246,7 @@ class DirMonitoring(QtWidgets.QMainWindow): # текстбокс с логами
 class MonHandler(FileSystemEventHandler):
     def on_created(self, event):
         if not os.path.isdir(event.src_path) and (time.time() - Monitor.last_trigger) > 1:
+            Monitor.last_trigger = time.time()
             Monitor.mon.textEdit.appendPlainText("В директории создан новый файл: "+event.src_path+"\nЗапущено сканирование всей директории...")
             cmd = "../main.exe "+event.src_path
             p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -254,6 +255,7 @@ class MonHandler(FileSystemEventHandler):
 
     def on_modified(self, event):
         if not os.path.isdir(event.src_path) and (time.time() - Monitor.last_trigger) > 1:
+            Monitor.last_trigger = time.time()
             Monitor.mon.textEdit.appendPlainText("В директории изменён файл: "+event.src_path+"\nЗапущено сканирование всей директории...")
             cmd = "../main.exe "+event.src_path
             p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
