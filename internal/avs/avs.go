@@ -109,7 +109,7 @@ func FindInFile(filepath string, signTree *prefixtree.Tree) error {
 	return nil
 }
 
-func findSignatures(path string, tree *prefixtree.Tree) error {
+func (avs *AVScanner) FindSignatures(path string, tree *SignTree) error {
 	if len(os.Args) > 1 {
 		for index, ScanDir := range os.Args {
 			if index == 0 {

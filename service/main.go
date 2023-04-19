@@ -25,20 +25,20 @@ import (
 // )
 
 func main() {
-	
-	a := 
+	tree := avs.SignTree{}
+	a := avs.NewAVScanner(map[string]avs.Signature{})
  
 	if len(os.Args) > 1 {
 		for index, argument := range os.Args {
 			if index == 0 {
 				continue
 			} else {
-				fileData, err := os.Stat(argument)
+				filename, err := os.Stat(argument)
 				if err != nil {
 					fmt.Printf("[%v] %v\n", argument, err.Error())
 					continue
 				}
-				if fileData.IsDir() {
+				if filename.IsDir() {
 					err = filepath.Walk(argument,
 						func(path string, info fs.FileInfo, err error) error {
 							if err != nil {
@@ -48,13 +48,13 @@ func main() {
 								return nil
 							}
 							// fmt.Println("scan in file", path)
-							return a.findSignatures(path)
+							return a.FindSignatures(path, )
 						})
 					if err != nil {
 						fmt.Printf("[%v] %v\n", argument, err.Error())
 					}
 				} else {
-					a.findSignatures(argument)
+					a.FindSignatures(argument, tree)
 				}
 			}
 		}
