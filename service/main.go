@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"io/fs"
-	// "kkopilka/AV/internal/avs"
+	"kkopilka/AV/internal/avs"
 	"os"
 
 	"path/filepath"
@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	
 )
 
 // var (
@@ -24,8 +25,9 @@ import (
 // )
 
 func main() {
-	a := avs.NewAVScanner()
-
+	
+	a := 
+ 
 	if len(os.Args) > 1 {
 		for index, argument := range os.Args {
 			if index == 0 {
@@ -46,13 +48,13 @@ func main() {
 								return nil
 							}
 							// fmt.Println("scan in file", path)
-							return a.ScanFile(path)
+							return a.findSignatures(path)
 						})
 					if err != nil {
 						fmt.Printf("[%v] %v\n", argument, err.Error())
 					}
 				} else {
-					a.ScanFile(argument)
+					a.findSignatures(argument)
 				}
 			}
 		}

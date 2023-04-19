@@ -1,4 +1,4 @@
-package main
+package avs
 
 import (
 	"database/sql"
@@ -34,12 +34,7 @@ type SignTree struct {
 	dtype       string
 }
 
-func main() {
-
-	filename := "C:/Users/yanas/AV/trash/Iron_Lung.exe"
-
-	fmt.Printf("Find result in file: %s - %+v\n", filename, s)
-}
+// var errFoundSign = errors.New("найдена сигнатура. Ты бара")
 
 func LoadSignatures(db *sql.DB) *prefixtree.Tree {
 	tree := prefixtree.New()
@@ -67,100 +62,89 @@ func LoadSignatures(db *sql.DB) *prefixtree.Tree {
 	return tree
 }
 
-func findSignatures(tree *prefixtree.Tree, filename string) (*SignTree, error) {
-	// open file
-	// f, err := os.Open(filename)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer f.Close()
+func FindInFile(filepath string, signTree *prefixtree.Tree) error {
+	f, err := os.Open(filepath)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	// создаем буфер на 2 символа
+	byteSlice := make([]byte, 2)
+	// начинаем с начала файла
+	curOffset := 0
+	for {
+		// читаем байты в буфер
+		_, err := f.ReadAt(byteSlice, int64(curOffset))
+		if err != nil {
+			return nil
+		}
+
+		// ищем 2 символа из буфера в префиксном дереве
+		s, err := signTree.Find(string(byteSlice))
+		if err != nil {
+			// ошибка конец файла -> выходим из цикла
+			if err == io.EOF {
+				break
+			}
+			// ошибка префикс не найден
+			if err == prefixtree.ErrPrefixNotFound {
+				// смещаем указатель на 1 байт
+				curOffset++
+				// и возвращаемся вверх цикла
+				continue
+			}
+			// неизвестная ошибка выходим
+			return nil
+		}
+
+		// чет найдено, пытаемся преобразовать
+		if d, ok := s.(*SignTree); ok {
+			return d // ошиб очка
+		}
+		// не получилось преобразовать
+		return errors.New("signature data corrupted")
+	}
+
+	return nil
+}
+
+func findSignatures(path string, tree *prefixtree.Tree) error {
 	if len(os.Args) > 1 {
-		for index, argument := range os.Args {
+		for index, ScanDir := range os.Args {
 			if index == 0 {
 				continue
 			} else {
-				filename, err := os.Stat(argument)
+				path, err := os.Stat(ScanDir)
 				if err != nil {
 					fmt.Printf(err.Error())
 					continue
 				}
-				if filename.IsDir() {
-
-					err := filepath.Walk(argument,
-						func(filename string, info fs.FileInfo, err error) error {
-							if err != nil {
-								return err
-							}
-
-							// Читаем содержимое файла
-							f, err := os.Open(filename)
-							if err != nil {
-								return err
-							}
-							// создаем буфер на 2 символа
-							byteSlice := make([]byte, 2)
-							// начинаем с начала файла
-							curOffset := 0
-							for {
-								// читаем байты в буфер
-								_, err := f.ReadAt(byteSlice, int64(curOffset))
-								if err != nil {
-									return nil
-								}
-
-								// ищем 2 символа из буфера в префиксном дереве
-								s, err := tree.Find(string(byteSlice))
-								if err != nil {
-									// ошибка конец файла -> выходим из цикла
-									if err == io.EOF {
-										break
-									}
-									// ошибка префикс не найден
-									if err == prefixtree.ErrPrefixNotFound {
-										// смещаем указатель на 1 байт
-										curOffset++
-										// и возвращаемся вверх цикла
-										continue
-									}
-									// неизвестная ошибка выходим
-									return nil
-
-									// чет найдено, пытаемся преобразовать
-									if d, ok := s.(*SignTree); ok {
-										return d // ошиб Очка
-									}
-									// не получилось преобразовать
-									return errors.New("signature data corrupted")
-								}
-							}
-							return nil
-						})
+				if path.IsDir() {
+					err := filepath.Walk(ScanDir, func(path string, info fs.FileInfo, err error) error {
+						if err != nil {
+							return err
+						}
+						err = FindInFile(path, tree)
+						if err != nil {
+							return err
+						}
+						return nil
+					})
 					if err != nil {
 						fmt.Println(err)
 					}
-
 				}
-
 			}
-
 		}
-
 	}
-	return nil, nil
-
+	return nil
 }
 
 // func (avs *AVScanner) ScanFile(filepath string) error {
 // 	if _, ok := avs.VirusStats[filepath]; !ok {
 // 		avs.VirusStats[filepath] = []string{}
 // 	}
-
-// 	// // open file
-// 	// f, err := os.Open(filepath)
-// 	// if err != nil {
-// 	// 	return err
-// 	// }
-// 	// defer f.Close()
 
 // 	db, err := sql.Open("sqlite3", "C:/Users/yanas/AV/database/signatures.db")
 // 	if err != nil {
@@ -188,3 +172,12 @@ func findSignatures(tree *prefixtree.Tree, filename string) (*SignTree, error) {
 
 // 	return nil
 // }
+
+func NewAVScanner(signatures map[string]Signature) *AVScanner {
+	a := &AVScanner{
+		signatures: signatures,
+		VirusStats: make(map[string][]string),
+	}
+
+	return a
+}
