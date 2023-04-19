@@ -1,6 +1,5 @@
-# *.exe
-*.Follina_Exploiter_CLI
 *.xlsx
+antivirus.exe
 
 trash/
 UI/__pycache__/
