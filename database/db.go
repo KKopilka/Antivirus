@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"kkopilka/AV/internal/signature"
+	"os"
 	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -15,7 +16,7 @@ var db *sql.DB
 func Open() error {
 	var err error
 	// подключение к БД
-	db, err = sql.Open("sqlite3", "database/signatures.db")
+	db, err = sql.Open("sqlite3", os.Getenv("DB_FILE_LOCATION"))
 	if err != nil {
 		return err
 	}
