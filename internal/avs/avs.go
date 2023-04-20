@@ -1,159 +1,253 @@
-package main
+package avs
 
 import (
-	"database/sql"
+	"bytes"
 	"errors"
-	"fmt"
 	"io"
+	"io/fs"
+	"log"
 	"os"
-	"strconv"
+	"path/filepath"
+	"strings"
+
+	searchtree "kkopilka/AV/internal/search-tree"
+	"kkopilka/AV/internal/signature"
+	"kkopilka/AV/internal/utils"
 
 	"github.com/beevik/prefixtree"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type AVScanner struct {
-	signatures map[string]Signature
+	signatures map[string]signature.Signature
 	VirusStats map[string][]string
 }
 
-type Signature struct {
-	id          int64
-	Sign        []byte
-	sha         string
-	offsetBegin string // смещение в байтах от начала
-	offsetEnd   string
-	dtype       string
-}
+var ErrSignatureFoundInFile = errors.New("Signature was found in file")
 
-var errFoundSign = errors.New("найдена сигнатура. Ты бара")
-var database *sql.DB
-
-func main() {
-	db, err := sql.Open("sqlite3", "C:/Users/yanas/AV/database/signatures.db")
+func FindInFile(fpath string, signTree *prefixtree.Tree) (*searchtree.SignTree, error) {
+	f, err := os.Open(fpath)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	database = db
-	defer db.Close()
-	ReadSignatureDatabase()
+	defer f.Close()
+
+	return FindS(f.Name(), f, signTree)
 }
 
-func (signature *Signature) FindInFile(f *os.File) error {
-	tree := prefixtree.New()
+func FindS(filename string, f io.ReaderAt, signTree *prefixtree.Tree) (*searchtree.SignTree, error) {
+	// создаем буфер на 2 символа
+	byteSlice := make([]byte, 2)
+	// начинаем с начала файла
+	curOffset := 0
+	for {
+		// читаем байты в буфер
+		_, err := f.ReadAt(byteSlice, int64(curOffset))
+		if err != nil {
+			if err == utils.ErrInvalidOffset {
+				// смещаем указатель на 1 байт
+				curOffset++
+				// и возвращаемся вверх цикла
+				continue
+			}
 
-	for _, prefix := range []
+			return nil, err
+		}
 
+		// ищем 2 символа из буфера в префиксном дереве
+		s, err := signTree.Find(string(byteSlice))
+		if err != nil {
+			// ошибка конец файла -> выходим из цикла
+			if err == io.EOF {
+				break
+			}
+			// ошибка префикс не найден
+			if err == prefixtree.ErrPrefixNotFound {
+				// смещаем указатель на 1 байт
+				curOffset++
+				// и возвращаемся вверх цикла
+				continue
+			}
 
+			if err == prefixtree.ErrPrefixAmbiguous {
+				break
+			}
 
+			// неизвестная ошибка выходим
+			return nil, err
+		}
+
+		// чет найдено, пытаемся преобразовать
+		if d, ok := s.(*searchtree.SignTree); ok {
+
+			if err := checkFoundedSignatureInFileSlice(d, f, int64(curOffset)); err != nil {
+				if err == ErrSignatureFoundInFile {
+					return d, ErrSignatureFoundInFile
+				}
+
+				log.Println("error", err)
+
+				curOffset++
+				continue
+			}
+
+			offset, err := d.Offset()
+
+			if err != nil {
+				curOffset++
+				continue
+			}
+
+			// Определяем, что оффсет/тип файла совпадает
+			fileExtension := strings.Trim(filepath.Ext(filename), ".")
+			if offset != int64(curOffset) || TypeDefinition(fileExtension) != d.DType() {
+				// смещаем указатель на 1 байт
+				curOffset++
+				// и возвращаемся вверх цикла
+				continue
+			}
+
+			return d, ErrSignatureFoundInFile // yшиб очка
+		}
+
+		// не получилось преобразовать
+		return nil, errors.New("signature data corrupted")
+	}
+	return nil, nil
+}
+
+func checkFoundedSignatureInFileSlice(d *searchtree.SignTree, f io.ReaderAt, curOffset int64) error {
+	offsetStart, err := d.Offset()
+	if err != nil {
+		return err
+	}
+	offsetEnd, err := d.OffsetEnd()
+	if err != nil {
+		return err
+	}
+	signLength := offsetEnd - offsetStart
+
+	signBytes := make([]byte, signLength)
+	var n int
+	for {
+		n, err = f.ReadAt(signBytes, curOffset)
+		if err != nil {
+			if err == utils.ErrInvalidOffset {
+				// смещаем указатель на 1 байт
+				curOffset++
+				continue
+			}
+
+			return err
+		}
+
+		break
+	}
+
+	if n < int(signLength) {
+		return errors.New("read less bytes than sign")
+	}
+
+	if bytes.Equal(d.B, signBytes) {
+		return ErrSignatureFoundInFile
+	}
 
 	return nil
-	// strconv.Atoi(signature.offsetBegin)
-
-	// virSigLen := len(signature.Sign)
-	// byteSlice := make([]byte, virSigLen)
-
-	// n, err := f.ReadAt(byteSlice, signature.offsetBegin)
-	// if err != nil {
-	// 	return err
-	// }
-	// // fmt.Println("file read result:", byteSlice)
-
-	// if n < virSigLen {
-	// 	// это ошибка, потому что мы прочитали меньше в файле, чем длина сигнатуры, вируса там нет
-	// 	return errors.New("прочитанно меньше байтов, чем длина сигнатуры")
-	// }
-
-	// if bytes.Equal(byteSlice, s.Sign) {
-	// 	// fmt.Println("found sig", s.Sign)
-	// 	return errFoundSign
-	// }
-
-	
 }
 
-// поиск и загрузка сигнатур
-// func NewAVScanner() *AVScanner {
-// 	a := &AVScanner{
-// 		signatures: make(map[string]Signature),
-// 		VirusStats: make(map[string][]string),
-// 	}
-
-// 	err := filepath.Walk("./database/signature.db", func(path string, info fs.FileInfo, err error) error {
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		if info.IsDir() {
-// 			return nil
-// 		}
-
-// 		s, err := ReadSignatureDatabase()
-// 		if err != nil {
-// 			fmt.Println("signature not loaded", path, "err", err.Error())
-// 		} else {
-// 			a.signatures[info.Name()] = s
-// 		}
-// 		return nil
-// 	})
-// 	if err != nil {
-// 		log.Fatalf("%s", err.Error())
-// 	}
-
-// 	// fmt.Printf("Loaded signatures: %+v", a.signatures)
-
-// 	return a
-// }
-
-// func (avs *AVScanner) ScanFile(filepath string) error {
-// 	if _, ok := avs.VirusStats[filepath]; !ok {
-// 		avs.VirusStats[filepath] = []string{}
-// 	}
-
-// 	// open file
-// 	f, err := os.Open(filepath)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer f.Close()
-
-// 	for sigName, s := range avs.signatures {
-// 		// fmt.Println("Check sign", sigName)
-// 		if err := s.FindInFile(f); err != nil {
-
-// 			// fmt.Println("FindInFile err:", err)
-
-// 			// тут надо сделать тип ошибки отдельный для найденной сигнатуры и добавлять её в stats
-// 			if err == errFoundSign {
-// 				avs.VirusStats[filepath] = append(avs.VirusStats[filepath], sigName)
-// 			} else if err == io.EOF {
-// 				// fmt.Println("file is empty or EOF found", filepath)
-// 			} else {
-// 				return err
-// 			}
-// 		}
-// 	}
-
-// 	return nil
-// }
-
-func ReadSignatureDatabase() {
-	result, err := database.Query("SELECT * FROM signatures")
-	if err != nil {
-		panic(err)
+func TypeDefinition(fileExtension string) string {
+	types := map[string]string{
+		"EXE": "PE",
+		"COM": "COM",
 	}
-	defer result.Close()
-	signature := []Signature{}
 
-	for result.Next() {
-		s := Signature{}
-		err := result.Scan(&s.id, &s.Sign, &s.sha, &s.offsetBegin, &s.offsetEnd, &s.dtype)
+	value, _ := types[strings.ToUpper(fileExtension)]
 
+	return value
+}
+
+var signSearchStats map[string][]string
+
+func SearchResults() map[string][]string {
+	return signSearchStats
+}
+
+func generateFilepathWalkFunction(tree *prefixtree.Tree, signSearchStats map[string][]string) func(path string, info fs.FileInfo, err error) error {
+	return func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
-			fmt.Println(err)
-			continue
+			return err
 		}
-		signature = append(signature, s)
+
+		if info.IsDir() {
+			return nil
+		}
+
+		log.Println("scan file: ", path)
+		// Определяем расширение файла
+		fileExtension := strings.ToLower(strings.Trim(filepath.Ext(path), "."))
+
+		if fileExtension == "zip" {
+			if scanResult, err := ScanZipFile(path, tree); err != nil {
+				return err
+			} else {
+				for p, signs := range scanResult {
+					signSearchStats[p] = signs
+				}
+			}
+
+			return nil
+		} else if fileExtension == "7z" {
+			if scanResult, err := Scan7ZFile(path, tree); err != nil {
+				return err
+			} else {
+				for p, signs := range scanResult {
+					signSearchStats[p] = signs
+				}
+			}
+
+			return nil
+		}
+
+		detectedSignature, err := FindInFile(path, tree)
+		if handleError(err) != nil {
+			return err
+		}
+
+		if detectedSignature != nil {
+			if _, ok := signSearchStats[path]; !ok {
+				signSearchStats[path] = []string{}
+			}
+
+			signSearchStats[path] = append(signSearchStats[path], detectedSignature.Name())
+		} else {
+			// файл чист
+			signSearchStats[path] = nil
+		}
+
+		return nil
 	}
-	fmt.Println(signature)
+}
+
+func handleError(err error) error {
+	if err != nil {
+		switch err {
+		case ErrSignatureFoundInFile, io.EOF:
+			return nil
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+func FindSignatures(searchlocation string, tree *prefixtree.Tree) error {
+	signSearchStats = make(map[string][]string)
+
+	err := filepath.Walk(searchlocation, generateFilepathWalkFunction(tree, signSearchStats))
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

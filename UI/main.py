@@ -192,7 +192,7 @@ class SchedWindow(QtWidgets.QMainWindow): # текстбокс с логами �
         self.sched.CancelScan.clicked.connect(self.exitSched)
         self.path = None
         self.timePeriod = None
-    
+
     def setScanWindow(self, timePeriod):
         self.timePeriod = int(timePeriod)
         self.sched.ScanTime.setText(str((datetime.now()+timedelta(seconds=self.timePeriod)).hour)+":"+str((datetime.now()+timedelta(seconds=self.timePeriod)).minute))
