@@ -3,7 +3,7 @@
 # Compiling
 ```golang
 git clone https://github.com/KKopilka/Antivirus.git
-go build .\service\main.go
+go build .\cmd\antivirus\antivirus.go
 ```
 # Usage
 ```python
