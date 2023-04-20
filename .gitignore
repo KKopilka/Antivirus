@@ -1,5 +1,6 @@
 *.xlsx
 antivirus.exe
+antivirus.zip
 
 trash/
 UI/__pycache__/
