@@ -59,7 +59,18 @@ func FindInFile(filepath string, signTree *prefixtree.Tree) (*searchtree.SignTre
 
 		// чет найдено, пытаемся преобразовать
 		if d, ok := s.(*searchtree.SignTree); ok {
-			return d, ErrSignatureFoundInFile // ошиб очка
+			offset, err := d.Offset()
+			if err != nil {
+				curOffset++
+				continue
+			}
+			if int(offset) == curOffset {
+				return d, ErrSignatureFoundInFile // ошиб очка
+			} else {
+				curOffset++
+				continue
+			}
+
 		}
 		// не получилось преобразовать
 		return nil, errors.New("signature data corrupted")
@@ -126,38 +137,6 @@ func FindSignatures(searchlocation string, tree *prefixtree.Tree) error {
 
 	return nil
 }
-
-// func (avs *AVScanner) ScanFile(filepath string) error {
-// 	if _, ok := avs.VirusStats[filepath]; !ok {
-// 		avs.VirusStats[filepath] = []string{}
-// 	}
-
-// 	db, err := sql.Open("sqlite3", "C:/Users/yanas/AV/database/signatures.db")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	defer db.Close()
-// 	tree := LoadSignatures(db)
-
-// 	for sigName, s := range avs.signatures {
-// 		// fmt.Println("Check sign", sigName)
-// 		if err := findSignatures(tree, filepath); err != nil {
-
-// 			// fmt.Println("FindInFile err:", err)
-
-// 			// тут надо сделать тип ошибки отдельный для найденной сигнатуры и добавлять её в stats
-// 			if err == errFoundSign {
-// 				avs.VirusStats[filepath] = append(avs.VirusStats[filepath], sigName)
-// 			} else if err == io.EOF {
-// 				// fmt.Println("file is empty or EOF found", filepath)
-// 			} else {
-// 				return err
-// 			}
-// 		}
-// 	}
-
-// 	return nil
-// }
 
 func NewAVScanner(signatures map[string]signature.Signature) *AVScanner {
 	a := &AVScanner{

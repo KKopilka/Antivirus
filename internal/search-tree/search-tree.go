@@ -3,6 +3,7 @@ package searchtree
 import (
 	"fmt"
 	"kkopilka/AV/database"
+	"strconv"
 	"strings"
 
 	"github.com/beevik/prefixtree"
@@ -18,6 +19,10 @@ type SignTree struct {
 
 func (st *SignTree) Name() string {
 	return strings.Join([]string{st.name, st.offsetBegin, st.dtype}, ":")
+}
+
+func (st *SignTree) Offset() (int64, error) {
+	return strconv.ParseInt(st.offsetBegin, 16, 64)
 }
 
 func BuildSearchTree() error {
