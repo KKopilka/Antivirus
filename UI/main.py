@@ -192,10 +192,10 @@ class SchedWindow(QtWidgets.QMainWindow): # текстбокс с логами �
         self.sched.CancelScan.clicked.connect(self.exitSched)
         self.path = None
         self.timePeriod = None
-        self.sched.ScanTime.setText(str(datetime.now().hour)+":"+str(datetime.now().minute))
-    
+
     def setScanWindow(self, timePeriod):
         self.timePeriod = int(timePeriod)
+        self.sched.ScanTime.setText(str((datetime.now()+timedelta(seconds=self.timePeriod)).hour)+":"+str((datetime.now()+timedelta(seconds=self.timePeriod)).minute))
     
     def makeSchedule(self, path):
         self.path = path
@@ -227,6 +227,7 @@ class SchedScanner(QtCore.QThread):
         self.period = period
     def run(self):
         while True:
+            time.sleep(self.period)
             with Popen(["../main.exe", self.path], stdout=PIPE) as p:
                 while True:
                     text = p.stdout.read1().decode("utf-8")
@@ -240,7 +241,6 @@ class SchedScanner(QtCore.QThread):
                     self.stdout.emit(text)
             scanTime = datetime.now()+timedelta(seconds=self.period)
             self.nextScan.emit(str(scanTime.hour)+":"+str(scanTime.minute))
-            time.sleep(self.period)
 
 class DirMonitoring(QtWidgets.QMainWindow): # текстбокс с логами называется textEdit
     def __init__(self, parent=None):
