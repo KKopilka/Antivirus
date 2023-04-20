@@ -7,10 +7,12 @@ import (
 	searchtree "kkopilka/AV/internal/search-tree"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -19,7 +21,21 @@ func main() {
 	}
 }
 
+func loadDotEnv() error {
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	exPath := filepath.Dir(ex)
+
+	return godotenv.Load(exPath + "/.env")
+}
 func run() error {
+	err := loadDotEnv()
+	if err != nil {
+		log.Println("Error loading .env file")
+	}
+
 	log.Println("Programm started")
 	if err := database.Open(); err != nil {
 		return err
@@ -54,6 +70,8 @@ func run() error {
 
 func printResults() {
 	searchResults := avs.SearchResults()
+
+	fmt.Printf("%+v\n", searchResults)
 
 	infectedFilesScan := map[string]struct{}{}
 	for file, signStats := range searchResults {

@@ -1,11 +1,16 @@
-import sys, os, subprocess
+import sys, os, subprocess, time, threading
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+from datetime import datetime, timedelta
 from mainWindow import *
 from secondWindow import *
 from thirdWindow import *
 from scanWindow import *
 from schedWindow import *
+from dirMonitoring import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileDialog
+from subprocess import Popen, PIPE
 
 os.environ['PYTHONIOENCODING'] = 'utf-8'
 
@@ -18,7 +23,6 @@ class Process(QtCore.QObject):
     stdout = QtCore.pyqtSignal(str)
     stderr = QtCore.pyqtSignal(str)
     finished = QtCore.pyqtSignal(int)
-
     def start(self, program, args):
         process = QtCore.QProcess()
         process.setProgram(program)
@@ -37,14 +41,17 @@ class MainWin(QtWidgets.QMainWindow):
         self.ui.setupUi(self)
         self.ui.ScanButton.clicked.connect(self.disconnect)
         self.ui.SchedButton.clicked.connect(self.schedule)
+        self.ui.MonitorButton.clicked.connect(self.monitor)
         self.ui.toolButton.clicked.connect(self.add_file)
 
     def disconnect(self):
         if self.ui.lineEdit.text() == '':
             MyApp3.show()
         else:
+            self.ui.ServiceStatus.setText("запущен")
             MyApp2.show()
             Scan.show()
+            #Scan.scan.textEdit.setPlainText("")
             
             cmd = "../main.exe"
             args = [self.ui.lineEdit.text()]
@@ -54,7 +61,20 @@ class MainWin(QtWidgets.QMainWindow):
         if self.ui.lineEdit_2.text() == '':
             MyApp3.show()
         else:
-    	    Schedule.show()
+            self.ui.ServiceStatus.setText("запущен")
+            scan_period = self.ui.lineEdit_2.text()
+            Schedule.sched.textEdit.setPlainText("")
+            Schedule.show()
+            Schedule.setScanWindow(scan_period)
+            Schedule.makeSchedule(self.ui.lineEdit.text())
+
+    def monitor(self):
+        if self.ui.lineEdit.text() == '' or not os.path.isdir(self.ui.lineEdit.text()):
+            MyApp3.show()
+        else:
+            self.ui.ServiceStatus.setText("запущен")
+            Monitor.show()
+            Monitor.startMonitor(self.ui.lineEdit.text())
 
     @QtCore.pyqtSlot()
     def add_file(self):
@@ -103,7 +123,6 @@ class MainWin(QtWidgets.QMainWindow):
         
         if fname:
             self.ui.lineEdit.setText(fname)
-            print(fname)
 
 class SecondWin(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
@@ -138,8 +157,9 @@ class ScanWin(QtWidgets.QMainWindow):
         self.process = None
         
     def funkClose(self):
-        self.scan.txtScan.setPlainText("")
         Scan.close()
+        self.scan.txtScan.setPlainText("")
+        MyApp.ui.ServiceStatus.setText("не запущен")
         
     def funkCancelScan(self):
         assert self.process != None
@@ -148,10 +168,21 @@ class ScanWin(QtWidgets.QMainWindow):
             self.process.stderr.disconnect(self.scan.txtScan.appendPlainText)
         except:
             pass
+            
     def funkStartScan(self, cmd, args):
         self.process = Process()
         self.process.stderr.connect(self.scan.txtScan.appendPlainText)
         self.process.start(cmd, args)
+        
+    def closeEvent(self, event):
+        assert self.process != None
+        # Признаю, это костыль
+        try:
+            self.process.stderr.disconnect(self.scan.txtScan.appendPlainText)
+        except:
+            pass
+        self.scan.txtScan.setPlainText("")
+        MyApp.ui.ServiceStatus.setText("не запущен")
 
 class SchedWindow(QtWidgets.QMainWindow): # текстбокс с логами называется textEdit
     def __init__(self, parent=None):
@@ -159,11 +190,107 @@ class SchedWindow(QtWidgets.QMainWindow): # текстбокс с логами �
         self.sched = Ui_SchedWindow()
         self.sched.setupUi(self)
         self.sched.CancelScan.clicked.connect(self.exitSched)
-        # self.sched.ScanTime.setText('Время вместо 13:00')
+        self.path = None
+        self.timePeriod = None
+        self.sched.ScanTime.setText(str(datetime.now().hour)+":"+str(datetime.now().minute))
     
+    def setScanWindow(self, timePeriod):
+        self.timePeriod = int(timePeriod)
+    
+    def makeSchedule(self, path):
+        self.path = path
+        if self.path == '':
+            MyApp3.show()
+        else:
+            self.schedScanner = SchedScanner(self.path, self.timePeriod)
+            self.schedScanner.stdout.connect(self.sched.textEdit.appendPlainText)
+            self.schedScanner.nextScan.connect(self.sched.ScanTime.setText)
+            self.schedScanner.start()
+
     def exitSched(self):
+        self.schedScanner.terminate()
         Schedule.close()
-        # отмена сканирования
+        self.sched.textEdit.setPlainText("")
+        MyApp.ui.ServiceStatus.setText("не запущен")
+        
+    def closeEvent(self, event):
+        self.schedScanner.terminate()
+        self.sched.textEdit.setPlainText("")
+        MyApp.ui.ServiceStatus.setText("не запущен")
+
+class SchedScanner(QtCore.QThread):
+    stdout = QtCore.pyqtSignal(str)
+    nextScan = QtCore.pyqtSignal(str)
+    def __init__(self, path, period):
+        super().__init__()
+        self.path = path
+        self.period = period
+    def run(self):
+        while True:
+            with Popen(["../main.exe", self.path], stdout=PIPE) as p:
+                while True:
+                    text = p.stdout.read1().decode("utf-8")
+                    time.sleep(0.1)
+                    
+                    # Если сервис за 0.1 секунду ничего не вывел - значит прекращаем считывание
+                    if text == "":
+                        break
+
+            
+                    self.stdout.emit(text)
+            scanTime = datetime.now()+timedelta(seconds=self.period)
+            self.nextScan.emit(str(scanTime.hour)+":"+str(scanTime.minute))
+            time.sleep(self.period)
+
+class DirMonitoring(QtWidgets.QMainWindow): # текстбокс с логами называется textEdit
+    def __init__(self, parent=None):
+        QtWidgets.QWidget.__init__(self, parent)
+        self.mon = Ui_DirMonitoring()
+        self.mon.setupUi(self)
+        self.mon.StopMonitor.clicked.connect(self.exitMon)
+        self.path = None
+        self.last_trigger = time.time()
+
+    def startMonitor(self, path):
+        self.path = path
+        if self.path == '':
+            MyApp3.show()
+        else:
+            self.mon.DirPath.setText(self.path)
+            self.event_handler = MonHandler()
+            self.observer = Observer()
+            self.observer.schedule(self.event_handler, path=self.path, recursive=True)
+            self.observer.start()
+
+    def exitMon(self):
+        Monitor.close()
+        self.observer.stop()
+        self.mon.textEdit.setPlainText("")
+        MyApp.ui.ServiceStatus.setText("не запущен")
+        
+    def closeEvent(self, event):
+        self.observer.stop()
+        self.mon.textEdit.setPlainText("")
+        MyApp.ui.ServiceStatus.setText("не запущен")
+
+class MonHandler(FileSystemEventHandler):
+    def on_created(self, event):
+        if not os.path.isdir(event.src_path) and (time.time() - Monitor.last_trigger) > 1:
+            Monitor.last_trigger = time.time()
+            Monitor.mon.textEdit.appendPlainText("В директории создан новый файл: "+event.src_path+"\nЗапущено сканирование всей директории...")
+            cmd = "../main.exe "+event.src_path
+            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = p.communicate()
+            Monitor.mon.textEdit.appendPlainText(str(stdout.decode()+stderr.decode()))
+
+    def on_modified(self, event):
+        if not os.path.isdir(event.src_path) and (time.time() - Monitor.last_trigger) > 1:
+            Monitor.last_trigger = time.time()
+            Monitor.mon.textEdit.appendPlainText("В директории изменён файл: "+event.src_path+"\nЗапущено сканирование всей директории...")
+            cmd = "../main.exe "+event.src_path
+            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = p.communicate()
+            Monitor.mon.textEdit.appendPlainText(str(stdout.decode()+stderr.decode()))
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
@@ -172,5 +299,6 @@ if __name__ == "__main__":
     MyApp3 = ThirdWin()
     Scan = ScanWin()
     Schedule = SchedWindow()
+    Monitor = DirMonitoring()
     MyApp.show()
     sys.exit(app.exec_())
