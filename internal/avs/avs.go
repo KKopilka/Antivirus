@@ -56,21 +56,9 @@ func FindInFile(filepath string, signTree *prefixtree.Tree) (*searchtree.SignTre
 			// неизвестная ошибка выходим
 			return nil, err
 		}
-
 		// чет найдено, пытаемся преобразовать
 		if d, ok := s.(*searchtree.SignTree); ok {
-			offset, err := d.Offset()
-			if err != nil {
-				curOffset++
-				continue
-			}
-			if int(offset) == curOffset {
-				return d, ErrSignatureFoundInFile // ошиб очка
-			} else {
-				curOffset++
-				continue
-			}
-
+			return d, ErrSignatureFoundInFile // ошиб очка
 		}
 		// не получилось преобразовать
 		return nil, errors.New("signature data corrupted")
