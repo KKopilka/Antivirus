@@ -3,11 +3,13 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"kkopilka/AV/internal/avs"
+	"kkopilka/AV/internal/signature"
 	"strconv"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
-var signatures []avs.Signature
+var signatures []signature.Signature
 var db *sql.DB
 
 func Open() error {
@@ -21,6 +23,10 @@ func Open() error {
 	return nil
 }
 
+func GetConnection() *sql.DB {
+	return db
+}
+
 func Close() error {
 	// Соединения с базой нет, закрывать нечего
 	if db == nil {
@@ -30,7 +36,7 @@ func Close() error {
 	return db.Close()
 }
 
-func Signatures() []avs.Signature {
+func Signatures() []signature.Signature {
 	return signatures
 }
 
@@ -41,11 +47,11 @@ func LoadSignatures() error {
 		return err
 	}
 
-	loadedSignatures := []avs.Signature{}
+	loadedSignatures := []signature.Signature{}
 
 	for result.Next() {
 
-		signature := avs.Signature{}
+		signature := signature.Signature{}
 		var offsetBegin, offsetEnd string
 
 		if err := result.Scan(
