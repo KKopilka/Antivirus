@@ -2,7 +2,6 @@ package avs
 
 import (
 	"archive/zip"
-	"fmt"
 	"kkopilka/AV/internal/utils"
 	"log"
 
@@ -27,7 +26,7 @@ func Scan7ZFile(
 
 	for _, sevenZFile := range document.File {
 		if !sevenZFile.FileInfo().IsDir() {
-			fmt.Printf("[%v] Scan file in %s: %v\n", filePath, sevenZFile.Name, "7z")
+			log.Printf("[%v] Scan file in %s: %v\n", filePath, "7z", sevenZFile.Name)
 			fname := filePath + "://" + sevenZFile.Name
 
 			file, err := sevenZFile.Open()
@@ -75,7 +74,7 @@ func ScanZipFile(
 
 	for _, zipFile := range document.File {
 		if !zipFile.FileInfo().IsDir() {
-			fmt.Printf("[%v] Scan file in zip: %v\n", filePath, zipFile.Name)
+			log.Printf("[%v] Scan file in zip: %v\n", filePath, zipFile.Name)
 			fname := filePath + "://" + zipFile.Name
 
 			file, err := zipFile.Open()
