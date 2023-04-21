@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"kkopilka/AV/database"
 	"kkopilka/AV/internal/avs"
@@ -14,6 +15,11 @@ import (
 	"github.com/fatih/color"
 	"github.com/joho/godotenv"
 )
+
+func init() {
+	// так пошли нахуй в stdout
+	log.SetOutput(os.Stdout)
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -71,7 +77,9 @@ func run() error {
 func printResults() {
 	searchResults := avs.SearchResults()
 
-	fmt.Printf("%+v\n", searchResults)
+	if b, err := json.MarshalIndent(searchResults, "", "\t"); err == nil {
+		log.Printf("Scan verbose results: %+v\n", string(b))
+	}
 
 	infectedFilesScan := map[string]struct{}{}
 	for file, signStats := range searchResults {
@@ -85,13 +93,9 @@ func printResults() {
 	}
 	valid := len(searchResults) - len(infectedFiles)
 
-	// if scanned > 0 {
-	// 	fmt.Println()
-	// }
 	fmt.Printf(
 		color.New(color.FgGreen).Add(color.Bold).Sprintf("Scanned files: ") + strconv.Itoa(len(searchResults)) +
 			color.New(color.FgGreen).Add(color.Bold).Sprintf("\nValid documents: ") + strconv.Itoa(valid) +
-			// color.New(color.FgYellow).Add(color.Bold).Sprintf("\nSuspicious files (%v): ", len(suspiciousFiles)) + strings.Join(suspiciousFiles, ", ") +
 			color.New(color.FgRed).Add(color.Bold).Sprintf("\nInfected files (%v): ", len(infectedFiles)) + strings.Join(infectedFiles, ", ") + "\n",
 	)
 }

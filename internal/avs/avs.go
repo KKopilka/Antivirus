@@ -11,16 +11,10 @@ import (
 	"strings"
 
 	searchtree "kkopilka/AV/internal/search-tree"
-	"kkopilka/AV/internal/signature"
 	"kkopilka/AV/internal/utils"
 
 	"github.com/beevik/prefixtree"
 )
-
-type AVScanner struct {
-	signatures map[string]signature.Signature
-	VirusStats map[string][]string
-}
 
 var ErrSignatureFoundInFile = errors.New("Signature was found in file")
 
